@@ -249,30 +249,50 @@ class EnhancedConditionalDiffusionModel(nn.Module):
 
     def evaluate_quality(self, samples, positive_mean, positive_std, global_context):
         """
-        评估生成样本质量 - 修复版
+        评估生成样本质量 - 改进版（考虑高维统计特性）
 
         质量指标：
-        1. 与正样本分布的相似度（主要指标）
-        2. 特征的合理性（不能有异常值）
+        1. 马氏距离相似度（考虑高维期望）
+        2. 特征分布合理性（考虑高维最大值期望）
         3. 特征范围合理性
+
+        改进：
+        - 考虑高维空间的统计特性
+        - 在1280维下，期望马氏距离 ≈ √1280 ≈ 35.8
+        - 在1280维下，期望最大归一化值 ≈ √(2ln(1280)) ≈ 3.72
         """
-        # 1. 分布相似度（归一化后的距离）- 权重提高
+        dim = samples.shape[1]  # 特征维度，通常是1280
+
+        # 1. 马氏距离相似度（考虑高维期望）
         normalized_samples = (samples - positive_mean) / positive_std
-        # 使用更温和的距离计算
-        dist = torch.mean(normalized_samples ** 2, dim=1)
-        dist_score = torch.exp(-dist / 5.0)  # 更温和的衰减
+        mahalanobis_dist = torch.sqrt(torch.mean(normalized_samples ** 2, dim=1) * dim)
 
-        # 2. 合理性（检查是否有异常值）- 权重降低
+        # 高维空间中，期望马氏距离 ≈ √dim
+        expected_dist = torch.sqrt(torch.tensor(dim, dtype=torch.float32, device=samples.device))
+
+        # 计算与期望距离的偏差（归一化）
+        dist_deviation = torch.abs(mahalanobis_dist - expected_dist) / expected_dist
+        dist_score = torch.exp(-dist_deviation * 3.0)  # 偏差越小，分数越高
+
+        # 2. 特征分布合理性（考虑高维最大值期望）
         max_abs_norm = torch.max(torch.abs(normalized_samples), dim=1).values
-        validity_score = torch.exp(-max_abs_norm / 3.0)  # 允许一定的异常值
 
-        # 3. 特征范围合理性（生成的特征应该在合理范围内）
+        # 高维空间中，期望最大值 ≈ √(2 ln(dim))
+        import math
+        expected_max = math.sqrt(2 * math.log(dim))  # ≈ 3.72 for dim=1280
+
+        # 计算与期望最大值的偏差
+        max_deviation = torch.abs(max_abs_norm - expected_max) / expected_max
+        validity_score = torch.exp(-max_deviation * 2.0)  # 偏差越小，分数越高
+
+        # 3. 特征范围合理性（保持不变）
         # ESM2特征通常在[-10, 10]范围内
         range_penalty = torch.clamp(torch.abs(samples).max(dim=1).values - 10.0, min=0.0)
         range_score = torch.exp(-range_penalty / 5.0)
 
-        # 综合质量分数 - 主要依赖分布相似度
-        quality = 0.6 * dist_score + 0.25 * validity_score + 0.15 * range_score
+        # 综合质量分数
+        # 调整权重：更重视马氏距离，适当考虑分布特性
+        quality = 0.5 * dist_score + 0.35 * validity_score + 0.15 * range_score
 
         return quality
 

@@ -76,7 +76,8 @@ class AdvancedBindingSiteGNN(nn.Module):
         use_edge_features=True,
         focal_alpha=0.25,
         focal_gamma=2.0,
-        class_balanced=True
+        class_balanced=True,
+        pos_weight=1.0
     ):
         super().__init__()
 
@@ -87,6 +88,7 @@ class AdvancedBindingSiteGNN(nn.Module):
         self.focal_alpha = focal_alpha
         self.focal_gamma = focal_gamma
         self.class_balanced = class_balanced
+        self.pos_weight = pos_weight  # 正样本额外权重
 
         # 输入投影
         self.input_proj = nn.Sequential(
@@ -182,7 +184,7 @@ class AdvancedBindingSiteGNN(nn.Module):
 
     def compute_loss(self, logits, targets, effective_num=None):
         """
-        计算损失（Focal Loss + Class Balanced）
+        计算损失（Focal Loss + Class Balanced + Pos Weight）
 
         Args:
             logits: (num_nodes,)
@@ -220,6 +222,12 @@ class AdvancedBindingSiteGNN(nn.Module):
             # 应用权重
             class_weights = targets * weight_pos + (1 - targets) * weight_neg
             focal_loss = focal_loss * class_weights
+
+        # 额外的正样本权重（用于提升召回率）
+        if self.pos_weight > 1.0:
+            pos_mask = (targets == 1).float()
+            pos_weight_mask = pos_mask * self.pos_weight + (1 - pos_mask) * 1.0
+            focal_loss = focal_loss * pos_weight_mask
 
         return focal_loss.mean()
 
@@ -326,13 +334,32 @@ class AdvancedBindingSiteGNN(nn.Module):
         all_probs = torch.cat(all_probs).numpy()
         all_targets = torch.cat(all_targets).numpy()
 
+        # 计算混淆矩阵
+        TP = np.sum((all_targets == 1) & (all_preds == 1))
+        TN = np.sum((all_targets == 0) & (all_preds == 0))
+        FP = np.sum((all_targets == 0) & (all_preds == 1))
+        FN = np.sum((all_targets == 1) & (all_preds == 0))
+
         # 计算指标
+        precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
+        recall = TP / (TP + FN) if (TP + FN) > 0 else 0.0
+        specificity = TN / (TN + FP) if (TN + FP) > 0 else 0.0
+
         metrics = {
             'f1': f1_score(all_targets, all_preds, zero_division=0),
             'mcc': matthews_corrcoef(all_targets, all_preds),
             'accuracy': accuracy_score(all_targets, all_preds),
+            'precision': precision,
+            'recall': recall,
+            'specificity': specificity,
             'auc_pr': average_precision_score(all_targets, all_probs) if len(np.unique(all_targets)) > 1 else 0,
-            'auc_roc': roc_auc_score(all_targets, all_probs) if len(np.unique(all_targets)) > 1 else 0
+            'auc_roc': roc_auc_score(all_targets, all_probs) if len(np.unique(all_targets)) > 1 else 0,
+            'confusion_matrix': {
+                'TP': int(TP),
+                'TN': int(TN),
+                'FP': int(FP),
+                'FN': int(FN)
+            }
         }
 
         return metrics
