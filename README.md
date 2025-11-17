@@ -32,23 +32,16 @@ pip install torch-geometric
 pip install scikit-learn pandas numpy
 pip install biopython
 
-📊 Model Architecture
+## 📊 Model Architecture
 Data Augmentation: Diffusion model generates synthetic protein graphs
 Edge Prediction: Predicts structural edges between residues
 Graph Construction: Builds protein graphs with predicted edges
 GAT-GNN Classification: Multi-head attention for binding site prediction
 Ensemble Learning: Combines multiple models for robust predictions
-🧪 Supported Protein Types
+## 🧪 Supported Protein Types
 p53 tumor suppressor protein
 Lac Repressor (HTH domain)
 MyoD (bHLH domain)
 Homeobox proteins
 Other DNA-binding proteins
-📝 Citation
-If you use this code in your research, please cite:
-@software{dna_binding_predictor_2025,
-  title={Edge Predictor with Diffusion Model for DNA Binding Sites},
-  author={Your Name},
-  year={2025},
-  url={https://github.com/YoungLeclerc/Edge_predictor_Diffusion_model_DNA_binding_sites}
-}
+
