@@ -17,6 +17,22 @@ This project implements an advanced graph neural network approach for predicting
 - Support for multiple DNA-binding protein families (HTH, zinc finger, bHLH, homeodomain)
 - PyMOL visualization scripts for 3D structure analysis
 
+## 📊 Model Architecture
+
+- Data Augmentation: Diffusion model generates synthetic protein graphs
+- Edge Prediction: Predicts structural edges between residues
+- Graph Construction: Builds protein graphs with predicted edges
+- GAT-GNN Classification: Multi-head attention for binding site prediction
+- Ensemble Learning: Combines multiple models for robust predictions
+  
+## 🧪 Supported Protein Types
+
+- p53 tumor suppressor protein
+- Lac Repressor (HTH domain)
+- MyoD (bHLH domain)
+- Homeobox proteins
+- Other DNA-binding proteins
+  
 ## 📦 Installation
 
 ### Requirements
@@ -32,16 +48,5 @@ pip install torch-geometric
 pip install scikit-learn pandas numpy
 pip install biopython
 
-## 📊 Model Architecture
-Data Augmentation: Diffusion model generates synthetic protein graphs
-Edge Prediction: Predicts structural edges between residues
-Graph Construction: Builds protein graphs with predicted edges
-GAT-GNN Classification: Multi-head attention for binding site prediction
-Ensemble Learning: Combines multiple models for robust predictions
-## 🧪 Supported Protein Types
-p53 tumor suppressor protein
-Lac Repressor (HTH domain)
-MyoD (bHLH domain)
-Homeobox proteins
-Other DNA-binding proteins
+
 
